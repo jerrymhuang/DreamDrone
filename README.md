@@ -1,4 +1,3 @@
 # DreamDrone
 
-Computational Modeling of Cognition, Spring 2024
-Jerry Huang, AJ Jansen
+Computational modeling allows us to observe emergent phenomena of cognitive behaviors in humans and machines. Here at DreamDrone, we are interested in machines that fly, in both real worlds and virtual.  
