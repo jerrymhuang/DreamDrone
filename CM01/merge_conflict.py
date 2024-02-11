@@ -1,6 +1,6 @@
 import numpy as np
 
 def test_func():
-    x = 6.0221415
+    x = np.randint(1, 10)
 
     return x
