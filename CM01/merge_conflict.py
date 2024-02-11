@@ -1,6 +1,6 @@
 import numpy as np
 
 def test_func():
-    x = np.random.rand()
+    x = 6.0221415
 
     return x
