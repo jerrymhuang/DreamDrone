@@ -1,8 +1,8 @@
 # DreamDrone <img src="info/dream-drone.png" align="right" width=20% height=20% />
 
-> "... The simulacrum is never that which conceals the truth -- it is the truth which conceals that there is none. The simulacrum is true."
+<!-- > "... The simulacrum is never that which conceals the truth -- it is the truth which conceals that there is none. The simulacrum is true."
 >
-> ---- Jean Baudrillard
+> ---- Jean Baudrillard -->
 
 Computational modeling enables us to simulate and observe emergent cognitive phenomena in humans and machines. It helps us turn intangible theories of psychophysical and information processes into something tangible, allowing us to study human behaviors in ways that are mathematically representable and abstractable. In so doing, it enriches the understanding of our interaction with our surrounding environments and with each other. 
 
