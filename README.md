@@ -1,4 +1,7 @@
-# DreamDrone <img src="info/dream-drone.png" alt="drawing" width="200"/>
+# DreamDrone 
+<div align="right">
+<img src="info/dream-drone.png" alt="drawing" width="200"/>
+</div>
 
 > "... The simulacrum is never that which conceals the truth -- it is the truth which conceals that there is none. The simulacrum is true."
 >
