@@ -1,4 +1,4 @@
-# DreamDrone ![hi](/info/dream-drone.png)
+# DreamDrone <img src="info/dream-drone.png" alt="drawing" width="200"/>
 
 > "... The simulacrum is never that which conceals the truth -- it is the truth which conceals that there is none. The simulacrum is true."
 >
