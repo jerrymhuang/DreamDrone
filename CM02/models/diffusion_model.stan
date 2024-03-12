@@ -7,6 +7,7 @@ data {
 
 parameters {
     // Your code here
+    
 }
 
 model {
