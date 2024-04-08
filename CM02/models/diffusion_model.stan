@@ -6,7 +6,8 @@ data {
 }
 
 parameters {
-    real<lower=0> v;
+    real<lower=0> v1;
+    real<lower=0> v2;
     real<lower=0> a;
     real<lower=0, upper=1> beta;
     real<lower=0> tau;
@@ -18,7 +19,8 @@ model {
     a ~ gamma(3, 1);
     beta ~ beta(2, 2);
     tau ~ gamma(2, 1);
-    v ~ gamma(3, 1);
+    v1 ~ gamma(3, 1);
+    v2 ~ gamma(3, 1);
 
 
     // Likelihood
@@ -27,22 +29,22 @@ model {
         if (condition[n] == 1) {
             if (choice[n] == 1) {
                 // Your code here
-                y[n] ~ wiener(a, tau, beta, v);
+                y[n] ~ wiener(a, tau, beta, v1);
             }
             else {
                 // Your code here
-                y[n] ~ wiener(a, tau, 1 - beta, -v);
+                y[n] ~ wiener(a, tau, 1 - beta, -v1);
             }
         }
         // Condition 2
         if (condition[n] == 2) {
             if (choice[n] == 1) {
                 // Your code here
-                y[n] ~ wiener(a, tau, beta, v);
+                y[n] ~ wiener(a, tau, beta, v2);
             }
             else {
                 // Your code here
-                y[n] ~ wiener(a, tau, 1 - beta, -v);
+                y[n] ~ wiener(a, tau, 1 - beta, -v2);
             }
         }
     }
