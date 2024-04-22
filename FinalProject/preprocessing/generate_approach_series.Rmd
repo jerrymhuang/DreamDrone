@@ -1,0 +1,331 @@
+#generate dataset of approach, gate passage, etc for each subject
+
+```{r}
+rm(list=ls())
+library(zoo)
+```
+
+#derive
+```{r}
+derive <- function(time, angle) {
+  
+  dt <- c(time[1], time[2:nrow(pos)] - time[1:(nrow(pos)-1)]) / 1000
+  dy <- c(angle[1], angle[2:nrow(pos)] - angle[1:(nrow(pos)-1)])
+  da <- dy / dt
+  
+}
+```
+
+#find closest passage point
+```{r}
+find_passage_point <- function(prev_passage, position_data, gate_position) {
+  min_distance <- 10000
+  if ((prev_passage + 800) > nrow(position_data)) {
+    end <- nrow(position_data)
+  } else {end <- prev_passage + 800}
+
+  for (row in prev_passage:end) {
+      distance <- sqrt((position_data$Position.x.[row] - gate_position$X)^2 +
+                       (position_data$Position.z.[row] - gate_position$Z)^2)
+
+      if (distance < min_distance) {
+        min_distance <- distance
+        closest_row <- row
+        }
+  }
+  as.integer(closest_row)
+}
+```
+
+#find closest timestamp if no perfect match
+```{r}
+find_closest <- function(prev_passage, Timestamps, passage) {
+  closest <- 10000000000000
+  if ((prev_passage + 500) > length(Timestamps)) {
+    end <- length(Timestamps)
+  } else {end <- prev_passage + 500}
+  
+  for (row in prev_passage:end) {
+    difference <- abs(passage - Timestamps[row])
+    if (difference < closest) {
+      closest <- difference
+      closest_row <- row
+      }
+  }
+  as.integer(closest_row)
+}
+```
+
+#get gates
+```{r}
+setwd("../../subjects exp 1.1/Exp1.1_Sp23_PilotTestFull")
+
+participants <- list.files(pattern="P_")
+
+all_gates <- data.frame()
+
+for (i in 1:length(participants)) {
+#for (i in 1:2) {
+  if (i==4) {next}
+  setwd(participants[i])
+  setwd("S001")
+        
+  conditions <- read.csv("conditions.csv")
+  
+  trial <- as.numeric(which((conditions$lookaheadCondition==7 | conditions$lookaheadCondition=="full") & conditions$orientationCondition=="original"))
+  
+  blocks <- list.files(pattern="Flight Data")
+  setwd(blocks[trial])
+  setwd(list.files(pattern="GaiaTest"))
+  
+  temp <- read.delim("gate_data.txt")
+  temp$Subject <- i
+  
+  all_gates <- rbind(all_gates, temp)
+  
+  setwd("../../../..")
+}
+
+write.csv(all_gates, "all_gates.csv", row.names=FALSE)
+
+```
+
+#main
+```{r}
+#all_gates <- read.csv("gate_orients.csv")
+#all_gates$Angle_Deg <- all_gates$Angle * 180 / pi
+
+full_data <- data.frame()
+
+setwd("coord-convert")
+files <- list.files(pattern="subject")
+
+for (i in 1:length(files)) {
+  for (lap in 0:1) {
+    
+    # get data
+    pos <- read.csv(files[i])
+    pos <- pos[,-c(6, 8, 9:12)]
+    #gates <- subset(all_gates, Subject==i & Lap==lap)
+
+    # get instantaneous angular velocity, acceleration
+    pos$d_ang <- derive(pos$Timestamp, pos$Orientation.y.)
+    pos <- na.omit(pos)
+    pos$d_ang <-  rollmean(pos$d_ang, k = 10, fill = NA, align = "center")
+
+    pos$ang_accel <- derive(pos$Timestamp, pos$d_ang)
+    pos$ang_accel <- rollmean(pos$ang_accel, k=10, fill=NA, align="center")
+    pos <- na.omit(pos)
+    
+    #determine which gate is upcoming
+    pos$Gate_N <- NA
+    pos$Gate_Ang <- NA
+    
+    prev_passage <- 1
+    for (gate in 1:32) {
+      
+      passed <- find_passage_point(prev_passage, pos, all_gates[gate,])
+      passed <- as.integer(passed)
+      
+      pos$Gate_N[prev_passage:passed] <- gate
+      pos$Gate_Ang[prev_passage:passed] <- all_gates$Angle_Deg[gate]
+      prev_passage <- passed + 1
+    }
+    
+    pos$Gate_N[is.na(pos$Gate_N)] <- 1
+    
+    pos$Ang_Pos <- 180 - (pos$Orientation.y. + pos$Gate_Ang)
+    pos <- na.omit(pos)
+
+    full_data <- rbind(full_data, pos)
+  }
+}
+
+write.csv(full_data, "full_data.csv", row.names=FALSE)
+
+write.csv(full_data[, c(6, 11:14, 17)], "slim_data.csv", row.names=FALSE)
+
+```
+
+
+
+#main chunk
+```{r}
+#set these to the correct values for the given experiment -------------------------------------------------------------
+setwd("../../../subjects exp 1.1/Exp1.1_Sp23_PilotTestFull")
+
+participants <- list.files(pattern="P_")
+#for (i in 3:length(participants)) {
+for (i in 1:2) {
+  setwd(participants[i])
+  setwd("S001")
+  
+  conditions <- read.csv("conditions.csv")
+  
+  #initialize the output dataframe
+  output <- data.frame(matrix(nrow=0, ncol=11))
+  colnames(output) <- c("Subject","Lap","Timestamp","LookaheadCondition","OrientationCondition",
+                        "Position(x)","Position(z)","Orientation(y)",
+                        "Upcoming_Gate","Upcoming_Passed","Upcoming_Collided")
+  
+  #loop through every trial for the subject
+  trial <- list.files(pattern="Flight Data")
+  for (k in 1:length(trial)) {
+
+    setwd(trial[k])
+    setwd(list.files(pattern="GaiaTest"))
+    
+    position_data <- read.delim(list.files(pattern="drone_capture"))
+    #position_data <- read.delim(list.files(pattern="drone_zeroes"))
+    gate_data <- read.delim("gate_data.txt")
+    obstacle_data <- read.delim("obstacle_data.txt")
+
+    #fix obstacle data
+    vars <- colnames(obstacle_data)
+    vars <- vars[-1]
+    obstacle_data <- obstacle_data[,-8]
+    colnames(obstacle_data) <- vars
+    
+    for (row in 1:nrow(obstacle_data)) {
+      gate_name <- str_split_1(rownames(obstacle_data[row,]), pattern=" ")
+      obstacle_data$Gate_Num[row] <- gate_name[2]
+    }
+    obstacle_data$Gate_Num <- as.numeric(obstacle_data$Gate_Num)
+    obstacle_data <- obstacle_data[order(obstacle_data$Gate_Num),]
+    obstacle_data <- obstacle_data[-c(1),]
+    
+    #omit still frames (e.g. during calibration)
+    df <- calculate_distance(position_data)
+    distanceTraveled <- df$distance
+    position_data <- position_data[!is.na(distanceTraveled),]
+    df <- na.omit(df)
+
+    #split into two laps
+    position_one <- subset(position_data, position_data$Lap_Number==0)
+    position_two <- subset(position_data, position_data$Lap_Number==1)
+    split <- nrow(position_one)
+    
+    gates_one <- subset(gate_data, gate_data$Lap==0)
+    gates_two <- subset(gate_data, gate_data$Lap==1)
+  
+    #add distance and remove resets in each lap
+    if (nrow(position_one) > 0) {
+      position_one <- cbind(position_one, df[1:nrow(position_one),])
+      rownames(position_one) <- c(1:nrow(position_one))
+      
+      check <- subset(position_one, Position.x. == -255.4 &
+                    Position.y. == 261 & Position.z. == -182.9)
+      if (nrow(check) != 0) {
+        row <- as.numeric(rownames(check)[nrow(check)])
+        position_one <- position_one[-c(1:row),]
+      }
+    }
+    
+    if (nrow(position_two) > 0) {
+      position_two <- cbind(position_two, df[(split+1):nrow(position_data),])
+      rownames(position_two) <- c(1:nrow(position_two))
+      
+      check <- subset(position_two, Position.x. == -255.4 &
+                    Position.y. == 261 & Position.z. == -182.9)      
+      if (nrow(check) != 0) {
+        row <- as.numeric(rownames(check)[nrow(check)])
+        position_two <- position_two[-c(1:row),]
+      }
+    }
+    rm(df)
+    
+    ###################################################################################
+
+    if (nrow(position_one) > 0) {
+      
+      one <- data.frame(matrix(0, nrow=nrow(position_one), ncol=11))
+      colnames(one) <- colnames(output)
+      one$Subject <- participants[i]
+      
+      #make gate index start at 1 instead of 0
+      gates_one$Gate <- gates_one$Gate + 1
+      
+      #start filling output dataframe
+      one$Timestamp <- position_one$Timestamp
+      one$Lap <- position_one$Lap_Number[1]
+      one$LookaheadCondition <- conditions$lookaheadCondition[k]
+      one$OrientationCondition <- conditions$orientationCondition[k]
+      
+      one$'Position(x)' <- position_one$Position.x.
+      one$'Position(z)' <- position_one$Position.z.
+      one$'Orientation(y)' <- position_one$Orientation.y.
+      
+      #segment position by gate being approached
+      prev_passage <- 1
+      
+      for (gate in 1:32) {
+
+          passed <- find_passage_point(prev_passage, position_one, obstacle_data[gate,])
+
+          passed <- as.integer(passed)
+
+          one$Upcoming_Gate[prev_passage:passed] <- gate
+          one$Upcoming_Passed[prev_passage:passed] <- gates_one$Passed[gate]
+          one$Upcoming_Collided[prev_passage:passed] <- gates_one$Collided[gate]
+
+          prev_passage <- passed+1
+
+      }
+
+      output <- rbind(output, one)
+    }
+    
+    ###################################################################################
+    
+    if ((nrow(position_two) > 0)  & !(i==5 & k==5)) {
+      
+      two <- data.frame(matrix(0, nrow=nrow(position_two), ncol=11))
+      colnames(two) <- colnames(output)
+      two$Subject <- participants[i]
+      
+      #make gate index start at 1 instead of 0
+      gates_two$Gate <- gates_two$Gate + 1
+      
+      #start filling output dataframe
+      two$Timestamp <- position_two$Timestamp
+      two$Lap <- position_two$Lap_Number[1]
+      two$LookaheadCondition <- conditions$lookaheadCondition[k]
+      two$OrientationCondition <- conditions$orientationCondition[k]
+      
+      two$'Position(x)' <- position_two$Position.x.
+      two$'Position(z)' <- position_two$Position.z.
+      two$'Orientation(y)' <- position_two$Orientation.y.
+      
+      #segment position by gate being approached
+      prev_passage <- 1
+      
+      for (gate in 1:32) {
+
+          passed <- find_passage_point(prev_passage, position_two, obstacle_data[gate,])
+          
+          passed <- as.integer(passed)
+  
+          two$Upcoming_Gate[prev_passage:passed] <- gate
+          two$Upcoming_Passed[prev_passage:passed] <- gates_two$Passed[gate]
+          two$Upcoming_Collided[prev_passage:passed] <- gates_two$Collided[gate]
+            
+          prev_passage <- passed+1
+
+      }
+
+      output <- rbind(output, two)
+    }
+  
+    setwd("../..")
+  }
+  
+  setwd("..")
+  
+  #output .csv file
+  write.csv(output, "gate_approach2.txt")
+  
+  setwd("..")
+}
+#}
+```
+
