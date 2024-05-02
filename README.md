@@ -10,4 +10,4 @@ Here at DreamDrone, we are interested in simulating machines that are flown by h
 
 ## Bayesian hierarchical modeling of trajectory-dependent gaze behaviors in multi-waypoint virtual drone steering
 
-Project detail coming soon!
+we investigate the relationship between waypoint position and gaze behaviors in virtual drone steering. We construct a hierarchical Bayesian linear regression model that allows us to examine gaze behavior with some baseline consideration of individual differences. Through this model, we would be able to estimate and predict gaze behavior based upon relative waypoint positions.
